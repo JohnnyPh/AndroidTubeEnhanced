@@ -1,6 +1,6 @@
 # AndroidTubeEnhanced
 
-AndroidTubeEnhanced is an app based on [Cobalt](https://cobalt.dev) that enhances your favourite streaming website viewing experience by removing ads, adding [SponsorBlock](https://sponsor.ajay.app/) support, and providing features like video speed control.
+<strong>AndroidTubeEnhanced</strong> is an <strong>custom TizenTubeCobalt</strong> app that have <strong>original android ID and Logo</strong> from the app that you can already guess! It is based on [Cobalt](https://cobalt.dev) that enhances your favourite streaming website viewing experience by removing ads, adding [SponsorBlock](https://sponsor.ajay.app/) support, and providing features like video speed control.
 
 <details>
 <summary><strong>What is Cobalt?</strong></summary>
