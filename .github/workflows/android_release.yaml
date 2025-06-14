@@ -53,18 +53,20 @@ jobs:
     needs: [setup, create_release]
     runs-on: self-hosted
     strategy:
+      fail-fast: false
+      max-parallel: 1
       matrix:
         include:
-          - label: arm64
-            gn_args: 'target_platform="android-arm64" target_os="android" target_cpu="arm64" build_type="gold" sb_api_version=15'
-            out_dir: out/android-arm64_gold
-            src_apk: out/android-arm64_gold/cobalt.apk
-            file_suffix: arm64
           - label: arm
             gn_args: 'target_platform="android-arm" target_os="android" target_cpu="arm" build_type="gold" sb_api_version=15'
             out_dir: out/android-arm_gold
             src_apk: out/android-arm_gold/cobalt.apk
             file_suffix: arm
+          - label: arm64
+            gn_args: 'target_platform="android-arm64" target_os="android" target_cpu="arm64" build_type="gold" sb_api_version=15'
+            out_dir: out/android-arm64_gold
+            src_apk: out/android-arm64_gold/cobalt.apk
+            file_suffix: arm64
 
     steps:
       - name: Checkout
