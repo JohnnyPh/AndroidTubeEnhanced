@@ -1,6 +1,6 @@
-# TizenTube Cobalt
+# AndroidTubeEnhanced
 
-TizenTube Cobalt is an app based on [Cobalt](https://cobalt.dev) that enhances your favourite streaming website viewing experience by removing ads, adding [SponsorBlock](https://sponsor.ajay.app/) support, and providing features like video speed control.
+AndroidTubeEnhanced is an app based on [Cobalt](https://cobalt.dev) that enhances your favourite streaming website viewing experience by removing ads, adding [SponsorBlock](https://sponsor.ajay.app/) support, and providing features like video speed control.
 
 <details>
 <summary><strong>What is Cobalt?</strong></summary>
@@ -23,9 +23,9 @@ Get the latest release for your platform:
 
 [**Download Latest Release**](https://github.com/reisxd/TizenTubeCobalt/releases/latest)
 
-AFTVNews code: `6366500`
+AFTVNews code: `6245313`
 
-For a better experience, use TizenTube Cobalt on a Google TV certified device.
+For a better experience, use AndroidTubeEnhanced on a Google TV certified device.
 
 ## How to Install
 
