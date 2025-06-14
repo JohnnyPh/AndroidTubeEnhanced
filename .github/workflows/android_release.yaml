@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       version_override:
-        description: 'VERSION OVERRIDE: Manually set a version (e.g., 2.0.0). Leave blank to auto-increment.'
+        description: 'VERSION OVERRIDE: Manually set a version (e.g., v2.0.0). Leave blank to use latest tag.'
         required: false
       release_description:
         description: 'DESCRIPTION: Enter the description for this release.'
@@ -12,79 +12,60 @@ on:
         default: 'Feature updates and bug fixes.'
 
 jobs:
-  android-arm64:
-    runs-on: self-hosted
+  setup:
+    name: Setup & Detect Version
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.get_version.outputs.version }}
     steps:
-      - name: Checkout
+      - name: Checkout code
         uses: actions/checkout@v4
-      - name: Cache Gradle
-        uses: actions/cache@v3
         with:
-          key: gradle-cache-${{ hashFiles('starboard/android/apk/**/*gradle*') }}
-          path: |
-            /root/.gradle/caches
-            /root/.gradle/wrapper
-      - name: Set up Cloud SDK
-        uses: isarkis/setup-gcloud@40dce7857b354839efac498d3632050f568090b6
-      - name: Set Android env vars
-        run: |
-          export ANDROID_HOME="$GITHUB_WORKSPACE/Android"
-          mkdir -p "$ANDROID_HOME"
-          echo "ANDROID_HOME=$ANDROID_HOME" >> $GITHUB_ENV
-          PROJECT_NAME=$(gcloud config get-value project)
-      - name: Install GN
-        run: |
-          wget https://chrome-infra-packages.appspot.com/dl/gn/gn/linux-amd64/+/latest -O gn.zip
-          unzip gn.zip -d gn_bin
-          sudo mv gn_bin/gn /usr/local/bin/gn
-          sudo chmod +x /usr/local/bin/gn
-      - name: Set PYTHONPATH
-        run: echo "PYTHONPATH=$GITHUB_WORKSPACE:$PYTHONPATH" >> $GITHUB_ENV
-      - name: Set up JDK 11
-        uses: actions/setup-java@v4
-        with:
-          java-version: '11'
-          distribution: 'temurin'
-      - name: Install build dependencies
-        run: |
-          sudo apt update && sudo apt install -qqy --no-install-recommends \
-            bison clang libasound2-dev libgles2-mesa-dev libglib2.0-dev \
-            libxcomposite-dev libxi-dev libxrender-dev nasm ninja-build \
-            python3-venv ccache gcc-multilib \
-            g++-multilib libc6-dev-i386 python-is-python3
-          ccache --max-size=20G
-          bash ./starboard/tools/download_clang.sh
-          bash ./starboard/android/shared/download_sdk.sh
-      - name: Ensure Android debug keystore exists
-        run: |
-          if [ ! -f "$HOME/.android/debug.keystore" ]; then
-            mkdir -p "$HOME/.android"
-            keytool -genkey -v -keystore "$HOME/.android/debug.keystore" \
-              -storepass android -alias androiddebugkey -keypass android \
-              -keyalg RSA -keysize 2048 -validity 10000 \
-              -dname "CN=Android Debug,O=Android,C=US"
-          fi
-      - name: GN
-        run: |
-          gn gen out/android-arm64_gold --args='target_platform="android-arm64" target_os="android" target_cpu="arm64" build_type="gold" sb_api_version=15'
-          gn check out/android-arm64_gold
-      - name: Build Cobalt
-        run: |
-          unset ANDROID_SDK_ROOT
-          NINJA_STATUS="[%e sec | %f/%t %u remaining | %c/sec | j%r] "
-          ninja -C out/android-arm64_gold cobalt_install
-      - name: Upload APK to release
-        uses: svenstaro/upload-release-action@v2
-        with:
-          repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: out/android-arm64_gold/cobalt.apk
-          asset_name: cobalt-android-arm64.apk
-          tag: ${{ github.ref_name }}
-          overwrite: true
+          fetch-depth: 0
 
-  android-arm:
+      - name: Detect version string
+        id: get_version
+        run: |
+          if [ -n "${{ github.event.inputs.version_override }}" ]; then
+            VERSION="${{ github.event.inputs.version_override }}"
+          else
+            VERSION="$(git describe --tags --abbrev=0)"
+          fi
+          [[ $VERSION == v* ]] || VERSION="v$VERSION"
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+  create_release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    needs: setup
+    steps:
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.setup.outputs.version }}
+          name: AndroidTubeEnhanced - ${{ needs.setup.outputs.version }}
+          body: ${{ github.event.inputs.release_description }}
+          draft: false
+          prerelease: false
+
+  build-apk:
+    name: Build & Upload APK (${{ matrix.label }})
+    needs: [setup, create_release]
     runs-on: self-hosted
-    needs: android-arm64
+    strategy:
+      matrix:
+        include:
+          - label: arm64
+            gn_args: 'target_platform="android-arm64" target_os="android" target_cpu="arm64" build_type="gold" sb_api_version=15'
+            out_dir: out/android-arm64_gold
+            src_apk: out/android-arm64_gold/cobalt.apk
+            file_suffix: arm64
+          - label: arm
+            gn_args: 'target_platform="android-arm" target_os="android" target_cpu="arm" build_type="gold" sb_api_version=15'
+            out_dir: out/android-arm_gold
+            src_apk: out/android-arm_gold/cobalt.apk
+            file_suffix: arm
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -137,18 +118,25 @@ jobs:
           fi
       - name: GN
         run: |
-          gn gen out/android-arm_gold --args='target_platform="android-arm" target_os="android" target_cpu="arm" build_type="gold" sb_api_version=15'
-          gn check out/android-arm_gold
+          gn gen ${{ matrix.out_dir }} --args='${{ matrix.gn_args }}'
+          gn check ${{ matrix.out_dir }}
       - name: Build Cobalt
         run: |
           unset ANDROID_SDK_ROOT
           NINJA_STATUS="[%e sec | %f/%t %u remaining | %c/sec | j%r] "
-          ninja -C out/android-arm_gold cobalt_install
+          ninja -C ${{ matrix.out_dir }} cobalt_install
+      - name: Rename APK with version
+        id: rename_apk
+        run: |
+          VERSION="${{ needs.setup.outputs.version }}"
+          NEW_APK="AndroidTubeEnhanced.${VERSION}.${{ matrix.file_suffix }}.apk"
+          mv "${{ matrix.src_apk }}" "$NEW_APK"
+          echo "apk_name=$NEW_APK" >> $GITHUB_OUTPUT
       - name: Upload APK to release
         uses: svenstaro/upload-release-action@v2
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: out/android-arm_gold/cobalt.apk
-          asset_name: cobalt-android-arm.apk
-          tag: ${{ github.ref_name }}
+          file: ${{ steps.rename_apk.outputs.apk_name }}
+          asset_name: ${{ steps.rename_apk.outputs.apk_name }}
+          tag: ${{ needs.setup.outputs.version }}
           overwrite: true
