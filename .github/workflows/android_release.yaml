@@ -1,4 +1,3 @@
-
 name: AndroidTubeEnhanced Manual Release
 
 on:
@@ -68,6 +67,16 @@ jobs:
             out_dir: out/android-arm64_gold
             src_apk: out/android-arm64_gold/cobalt.apk
             file_suffix: arm64
+          - label: firetv-arm
+            gn_args: 'application_name="com.amazon.firetv.youtube" target_platform="android-arm" target_os="android" target_cpu="arm" build_type="gold" sb_api_version=15'
+            out_dir: out/android-arm_gold
+            src_apk: out/android-arm_gold/cobalt.apk
+            file_suffix: firetv-arm
+          - label: firetv-arm64
+            gn_args: 'application_name="com.amazon.firetv.youtube" target_platform="android-arm64" target_os="android" target_cpu="arm64" build_type="gold" sb_api_version=15'
+            out_dir: out/android-arm64_gold
+            src_apk: out/android-arm64_gold/cobalt.apk
+            file_suffix: firetv-arm64
 
     steps:
       - name: Checkout
